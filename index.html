@@ -338,6 +338,23 @@ function playSound(type) {
             o2.start(now + i * 0.06); o2.stop(now + i * 0.06 + 0.05);
         }
     }
+    else if (type === 'bow') {
+        // Bow twang
+        const osc = audioCtx.createOscillator(); osc.type = 'triangle';
+        osc.frequency.setValueAtTime(500, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+        gain.gain.setValueAtTime(0.18, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.2);
+        // String snap
+        const bufSize = audioCtx.sampleRate * 0.05;
+        const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.2;
+        const noise = audioCtx.createBufferSource(); noise.buffer = buf;
+        const ng = audioCtx.createGain();
+        ng.gain.setValueAtTime(0.15, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        noise.connect(ng); ng.connect(audioCtx.destination); noise.start(now); noise.stop(now + 0.05);
+    }
     else if (type === 'portal') {
         // Nether portal whoosh
         const osc = audioCtx.createOscillator(); osc.type = 'sine';
@@ -455,6 +472,7 @@ let level = 1, score = 0, lives = 3;
 let tiles = [];
 let player = { row:0, col:0, jumping:false, jumpTime:0, jumpFrom:null, jumpTo:null, facing:1 };
 let enemies = [], enemySpawnTimer = 0;
+let arrows = [];
 let particles = [], xpOrbs = [];
 let flashTimer = 0, inputLocked = false;
 let highScore = parseInt(localStorage.getItem('minebert_high2') || '0');
@@ -470,7 +488,7 @@ function initLevel() {
         for (let col = 0; col <= row; col++) tiles[row][col] = { done: false };
     }
     player = { row:0, col:0, jumping:false, jumpTime:0, jumpFrom:null, jumpTo:null, facing:1 };
-    enemies = []; enemySpawnTimer = 180;
+    enemies = []; arrows = []; enemySpawnTimer = 180;
     inputLocked = false;
     speechBubble = { text:'', timer:0 };
     xpOrbs = []; particles = [];
@@ -958,6 +976,11 @@ function moveEnemy(enemy) {
     enemy.moveTimer--;
     if (enemy.moveTimer > 0) return;
     enemy.moveTimer = 55 + Math.random() * 35;
+    // Skeletons and wither_skeletons shoot arrows instead of moving sometimes
+    if ((enemy.type === 'skeleton' || enemy.type === 'wither_skeleton') && Math.random() < 0.4) {
+        spawnArrow(enemy);
+        return;
+    }
     const possibleMoves = [];
     const nr1 = enemy.row + 1;
     if (nr1 < PYRAMID_SIZE) {
@@ -985,6 +1008,73 @@ function moveEnemy(enemy) {
 function getJumpPos(from, to, t) {
     const fp = gridToScreen(from.row, from.col), tp = gridToScreen(to.row, to.col);
     return { x: fp.x+(tp.x-fp.x)*t, y: fp.y+(tp.y-fp.y)*t - 55*Math.sin(t*Math.PI) };
+}
+
+// ===================== SKELETON ARROWS =====================
+function spawnArrow(enemy) {
+    const from = gridToScreen(enemy.row, enemy.col);
+    const to = gridToScreen(player.row, player.col);
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 10) return;
+    const speed = 3.5;
+    arrows.push({
+        x: from.x, y: from.y - 20,
+        vx: (dx / dist) * speed, vy: (dy / dist) * speed,
+        life: 180,
+        angle: Math.atan2(dy, dx)
+    });
+    playSound('bow');
+}
+
+function updateArrows() {
+    for (let i = arrows.length - 1; i >= 0; i--) {
+        const a = arrows[i];
+        a.x += a.vx; a.y += a.vy;
+        a.vy += 0.04; // gravity
+        a.angle = Math.atan2(a.vy, a.vx);
+        a.life--;
+        if (a.life <= 0 || a.y > canvas.height) { arrows.splice(i, 1); continue; }
+        // Hit player?
+        if (!player.jumping && !inputLocked) {
+            const pp = gridToScreen(player.row, player.col);
+            const dx = a.x - pp.x, dy = a.y - (pp.y - 16);
+            if (dx*dx + dy*dy < 18*18) {
+                arrows.splice(i, 1);
+                spawnParticles(pp.x, pp.y, '#8b6c42', 8);
+                playSound('hurt');
+                lives--;
+                const msgs = ['OUCH!','FRECCIA!','AHI!','NO!!'];
+                speechBubble.text = msgs[Math.floor(Math.random()*msgs.length)];
+                speechBubble.timer = 90;
+                if (lives <= 0) {
+                    gameState = 'gameover'; playSound('death');
+                    if (score > highScore) { highScore = score; localStorage.setItem('minebert_high2', highScore.toString()); }
+                } else {
+                    player.row = 0; player.col = 0; enemies = []; arrows = [];
+                    inputLocked = true; setTimeout(() => { inputLocked = false; }, 800);
+                }
+                break;
+            }
+        }
+    }
+}
+
+function drawArrow(a) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.angle);
+    // Shaft
+    ctx.fillStyle = '#8b6c42';
+    ctx.fillRect(-10, -1, 20, 2);
+    // Tip
+    ctx.fillStyle = '#888';
+    ctx.beginPath(); ctx.moveTo(10, -3); ctx.lineTo(14, 0); ctx.lineTo(10, 3); ctx.fill();
+    // Feathers
+    ctx.fillStyle = '#eee';
+    ctx.fillRect(-10, -3, 4, 2);
+    ctx.fillRect(-10, 1, 4, 2);
+    ctx.restore();
 }
 
 // ===================== INPUT =====================
@@ -1124,6 +1214,7 @@ function update() {
         }
     }
     updateParticles();
+    updateArrows();
     if (flashTimer>0) flashTimer--;
 }
 
@@ -1179,6 +1270,8 @@ function draw() {
     drawSteve(pp.x, pp.y, player.facing);
     drawSpeechBubble(pp.x, pp.y);
     drawParticles();
+    // Arrows
+    for (const a of arrows) drawArrow(a);
 
     // Overlays
     if (gameState === 'gameover') {
