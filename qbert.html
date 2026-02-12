@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Mine*Bert - Minecraft Q*Bert</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Press Start 2P', 'Courier New', monospace; }
+canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = 720;
+canvas.height = 780;
+
+// ===================== BIOME / LEVEL THEMES =====================
+const BIOMES = [
+    {
+        name: 'Prateria',
+        subtitle: 'Overworld - Pianure',
+        baseTop: [['#5a9e2c',0.3],['#4c8a24',0.6],['#6aae3c',0.85],['#3d7a1c',1]],
+        baseSide: { grassH: 3, grass: [['#5a9e2c',0.5],['#4c8a24',1]], dirt: [['#8b6c42',0.3],['#7a5c36',0.6],['#9a7c52',0.85],['#6b4c2a',1]] },
+        doneTop: [['#5cebf0',0.15],['#4cc8e0',0.3],['#888',0.6],['#777',1]],
+        doneSide: [['#3aabb8',0.12],['#2a8b98',0.24],['#666',0.55],['#555',1]],
+        doneName: 'Diamante',
+        particleColor: '#5cebf0',
+        skyTop: ['#1a1a3e','#5b9bd5'], skyBot: ['#0a0a2e','#87ceeb'], voidColor: '#1a0a2e',
+        enemies: ['zombie','creeper'], enemyWeightCreeper: 0.35,
+        bgType: 'overworld'
+    },
+    {
+        name: 'Foresta Oscura',
+        subtitle: 'Overworld - Dark Forest',
+        baseTop: [['#2d5a1a',0.3],['#1f4a12',0.6],['#3a6a28',0.85],['#153a0c',1]],
+        baseSide: { grassH: 2, grass: [['#2d5a1a',0.5],['#1f4a12',1]], dirt: [['#6b5030',0.3],['#5a4020',0.6],['#7b6040',0.85],['#4a3010',1]] },
+        doneTop: [['#e8e040',0.15],['#d0c830',0.3],['#888',0.6],['#777',1]],
+        doneSide: [['#b0a020',0.12],['#908018',0.24],['#666',0.55],['#555',1]],
+        doneName: 'Oro',
+        particleColor: '#e8e040',
+        skyTop: ['#0a0a1e','#2a4a3a'], skyBot: ['#050510','#3a5a4a'], voidColor: '#0a0a1a',
+        enemies: ['zombie','skeleton'], enemyWeightCreeper: 0.3,
+        bgType: 'dark_forest'
+    },
+    {
+        name: 'Deserto',
+        subtitle: 'Desert Temple',
+        baseTop: [['#e8d8a0',0.3],['#d8c890',0.6],['#f0e0b0',0.85],['#c8b880',1]],
+        baseSide: { grassH: 0, grass: [], dirt: [['#d8c888',0.3],['#c8b878',0.6],['#e8d898',0.85],['#b8a868',1]] },
+        doneTop: [['#e84020',0.15],['#d03018',0.3],['#888',0.6],['#777',1]],
+        doneSide: [['#b02810',0.12],['#901808',0.24],['#666',0.55],['#555',1]],
+        doneName: 'Redstone',
+        particleColor: '#e84020',
+        skyTop: ['#2a1a0a','#d8a050'], skyBot: ['#1a0a00','#f0c070'], voidColor: '#1a0a00',
+        enemies: ['skeleton','creeper'], enemyWeightCreeper: 0.4,
+        bgType: 'desert'
+    },
+    {
+        name: 'Caverne',
+        subtitle: 'Deep Underground',
+        baseTop: [['#6a6a6a',0.3],['#5a5a5a',0.6],['#7a7a7a',0.85],['#4a4a4a',1]],
+        baseSide: { grassH: 0, grass: [], dirt: [['#5a5a5a',0.3],['#4a4a4a',0.6],['#6a6a6a',0.85],['#3a3a3a',1]] },
+        doneTop: [['#40e850',0.15],['#30d040',0.3],['#888',0.6],['#777',1]],
+        doneSide: [['#20b030',0.12],['#109020',0.24],['#666',0.55],['#555',1]],
+        doneName: 'Smeraldo',
+        particleColor: '#40e850',
+        skyTop: ['#0a0a0a','#1a1a2a'], skyBot: ['#050505','#101020'], voidColor: '#000',
+        enemies: ['skeleton','enderman'], enemyWeightCreeper: 0.35,
+        bgType: 'cave'
+    },
+    {
+        name: 'Nether',
+        subtitle: 'The Nether',
+        baseTop: [['#8a2020',0.25],['#7a1818',0.5],['#6a1010',0.75],['#9a2828',1]],
+        baseSide: { grassH: 0, grass: [], dirt: [['#4a1010',0.3],['#3a0808',0.6],['#5a1818',0.85],['#2a0404',1]] },
+        doneTop: [['#f0d040',0.15],['#e0c030',0.3],['#d0a020',0.6],['#c09010',1]],
+        doneSide: [['#b08010',0.12],['#a07008',0.24],['#906008',0.55],['#805000',1]],
+        doneName: 'Oro del Nether',
+        particleColor: '#f0d040',
+        skyTop: ['#2a0000','#4a1010'], skyBot: ['#1a0000','#3a0808'], voidColor: '#100000',
+        enemies: ['blaze','skeleton'], enemyWeightCreeper: 0.45,
+        bgType: 'nether'
+    },
+    {
+        name: 'Warped Forest',
+        subtitle: 'Nether - Warped',
+        baseTop: [['#1a6a6a',0.3],['#0a5a5a',0.6],['#2a7a7a',0.85],['#004a4a',1]],
+        baseSide: { grassH: 2, grass: [['#1a6a6a',0.5],['#0a5a5a',1]], dirt: [['#3a2020',0.3],['#2a1010',0.6],['#4a3030',0.85],['#1a0808',1]] },
+        doneTop: [['#a040f0',0.15],['#9030e0',0.3],['#888',0.6],['#777',1]],
+        doneSide: [['#7020c0',0.12],['#6010b0',0.24],['#666',0.55],['#555',1]],
+        doneName: 'Ametista',
+        particleColor: '#a040f0',
+        skyTop: ['#0a1a2a','#1a3a4a'], skyBot: ['#050a1a','#0a2a3a'], voidColor: '#030510',
+        enemies: ['enderman','blaze'], enemyWeightCreeper: 0.4,
+        bgType: 'warped'
+    },
+    {
+        name: 'End',
+        subtitle: 'The End',
+        baseTop: [['#d8d8a0',0.3],['#c8c890',0.6],['#e8e8b0',0.85],['#b8b880',1]],
+        baseSide: { grassH: 0, grass: [], dirt: [['#b8b880',0.3],['#a8a870',0.6],['#c8c890',0.85],['#989860',1]] },
+        doneTop: [['#a020e0',0.15],['#8010c0',0.3],['#333',0.6],['#222',1]],
+        doneSide: [['#6008a0',0.12],['#500090',0.24],['#2a2a2a',0.55],['#1a1a1a',1]],
+        doneName: 'Ossidiana',
+        particleColor: '#a020e0',
+        skyTop: ['#000000','#0a0a1a'], skyBot: ['#000000','#050510'], voidColor: '#000',
+        enemies: ['enderman','ghast'], enemyWeightCreeper: 0.5,
+        bgType: 'end'
+    },
+    {
+        name: 'Wither Arena',
+        subtitle: 'Boss Finale!',
+        baseTop: [['#2a2a2a',0.3],['#1a1a1a',0.6],['#3a3a3a',0.85],['#0a0a0a',1]],
+        baseSide: { grassH: 0, grass: [], dirt: [['#1a1a1a',0.3],['#0a0a0a',0.6],['#2a2a2a',0.85],['#050505',1]] },
+        doneTop: [['#40e8f0',0.1],['#30d0e0',0.2],['#20b0c0',0.4],['#f0f0f0',0.6],['#e0e0e0',1]],
+        doneSide: [['#20a0b0',0.1],['#1090a0',0.2],['#0080a0',0.4],['#c0c0c0',0.6],['#a0a0a0',1]],
+        doneName: 'Faro',
+        particleColor: '#40e8f0',
+        skyTop: ['#000000','#1a0020'], skyBot: ['#000000','#100018'], voidColor: '#000',
+        enemies: ['wither_skeleton','ghast'], enemyWeightCreeper: 0.5,
+        bgType: 'wither'
+    }
+];
+
+function getCurrentBiome() {
+    const idx = ((level - 1) % BIOMES.length);
+    return BIOMES[idx];
+}
+
+// ===================== AUDIO ENGINE =====================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+    const now = audioCtx.currentTime;
+    const gain = audioCtx.createGain();
+    gain.connect(audioCtx.destination);
+
+    if (type === 'jump') {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(400, now + 0.06);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.12);
+    }
+    else if (type === 'place') {
+        const osc = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        osc.type = 'square'; osc2.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+        osc2.frequency.setValueAtTime(120, now);
+        osc2.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain); osc2.connect(gain);
+        osc.start(now); osc2.start(now); osc.stop(now + 0.15); osc2.stop(now + 0.15);
+        const bufSize = audioCtx.sampleRate * 0.06;
+        const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+        const noise = audioCtx.createBufferSource(); noise.buffer = buf;
+        const ng = audioCtx.createGain();
+        ng.gain.setValueAtTime(0.15, now); ng.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        noise.connect(ng); ng.connect(audioCtx.destination); noise.start(now); noise.stop(now + 0.06);
+    }
+    else if (type === 'hurt') {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.25);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.3);
+        const osc2 = audioCtx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(80, now);
+        osc2.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+        const g2 = audioCtx.createGain();
+        g2.gain.setValueAtTime(0.3, now); g2.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc2.connect(g2); g2.connect(audioCtx.destination); osc2.start(now); osc2.stop(now + 0.2);
+    }
+    else if (type === 'explode') {
+        const bufSize = audioCtx.sampleRate * 0.5;
+        const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.15));
+        const noise = audioCtx.createBufferSource(); noise.buffer = buf;
+        gain.gain.setValueAtTime(0.35, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        noise.connect(gain); noise.start(now); noise.stop(now + 0.5);
+        const osc = audioCtx.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(60, now); osc.frequency.exponentialRampToValueAtTime(20, now + 0.4);
+        const g2 = audioCtx.createGain();
+        g2.gain.setValueAtTime(0.4, now); g2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc.connect(g2); g2.connect(audioCtx.destination); osc.start(now); osc.stop(now + 0.5);
+    }
+    else if (type === 'levelup') {
+        [523,659,784,1047].forEach((freq, i) => {
+            const o = audioCtx.createOscillator(); o.type = 'square';
+            o.frequency.setValueAtTime(freq, now + i * 0.12);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0, now + i * 0.12);
+            g.gain.linearRampToValueAtTime(0.15, now + i * 0.12 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.2);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(now + i * 0.12); o.stop(now + i * 0.12 + 0.25);
+        });
+    }
+    else if (type === 'xp') {
+        const osc = audioCtx.createOscillator(); osc.type = 'sine';
+        const freq = 800 + Math.random() * 600;
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.08);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.15);
+    }
+    else if (type === 'fall') {
+        const osc = audioCtx.createOscillator(); osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(30, now + 0.6);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.6);
+    }
+    else if (type === 'death') {
+        [392,349,294,220].forEach((freq, i) => {
+            const o = audioCtx.createOscillator(); o.type = 'square';
+            o.frequency.setValueAtTime(freq, now + i * 0.2);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.15, now + i * 0.2);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.3);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(now + i * 0.2); o.stop(now + i * 0.2 + 0.35);
+        });
+    }
+    else if (type === 'click') {
+        const osc = audioCtx.createOscillator(); osc.type = 'square';
+        osc.frequency.setValueAtTime(600, now);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.04);
+    }
+    else if (type === 'zombie') {
+        const osc = audioCtx.createOscillator(); osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(80 + Math.random() * 30, now);
+        osc.frequency.linearRampToValueAtTime(60 + Math.random() * 20, now + 0.3);
+        gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.35);
+    }
+    else if (type === 'creeper') {
+        const bufSize = audioCtx.sampleRate * 0.8;
+        const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) {
+            const env = Math.min(1, i / (bufSize * 0.1)) * Math.exp(-i / (bufSize * 0.6));
+            data[i] = (Math.random() * 2 - 1) * env * 0.5;
+        }
+        const noise = audioCtx.createBufferSource(); noise.buffer = buf;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass'; filter.frequency.value = 6000; filter.Q.value = 2;
+        noise.connect(filter); filter.connect(gain);
+        gain.gain.setValueAtTime(0.25, now); noise.start(now); noise.stop(now + 0.8);
+    }
+    else if (type === 'skeleton') {
+        // Bone rattle
+        for (let i = 0; i < 4; i++) {
+            const o = audioCtx.createOscillator(); o.type = 'triangle';
+            const f = 1200 + Math.random() * 800;
+            o.frequency.setValueAtTime(f, now + i * 0.05);
+            const g = audioCtx.createGain();
+            g.gain.setValueAtTime(0.1, now + i * 0.05);
+            g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.04);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(now + i * 0.05); o.stop(now + i * 0.05 + 0.05);
+        }
+    }
+    else if (type === 'enderman') {
+        // Eerie warble
+        const osc = audioCtx.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+        gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.5);
+    }
+    else if (type === 'blaze') {
+        // Fire whoosh
+        const bufSize = audioCtx.sampleRate * 0.4;
+        const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i/(bufSize*0.3)) * 0.4;
+        const noise = audioCtx.createBufferSource(); noise.buffer = buf;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'highpass'; filter.frequency.value = 2000;
+        noise.connect(filter); filter.connect(gain);
+        gain.gain.setValueAtTime(0.2, now); noise.start(now); noise.stop(now + 0.4);
+    }
+    else if (type === 'ghast') {
+        // Ghostly cry
+        const osc = audioCtx.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.linearRampToValueAtTime(400, now + 0.3);
+        osc.frequency.linearRampToValueAtTime(700, now + 0.6);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.7);
+    }
+    else if (type === 'wither_skeleton') {
+        // Dark rattle + low tone
+        const osc = audioCtx.createOscillator(); osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+        gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.connect(gain); osc.start(now); osc.stop(now + 0.35);
+        for (let i = 0; i < 3; i++) {
+            const o2 = audioCtx.createOscillator(); o2.type = 'triangle';
+            o2.frequency.setValueAtTime(800 + Math.random() * 400, now + i * 0.06);
+            const g2 = audioCtx.createGain();
+            g2.gain.setValueAtTime(0.08, now + i * 0.06);
+            g2.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.04);
+            o2.connect(g2); g2.connect(audioCtx.destination);
+            o2.start(now + i * 0.06); o2.stop(now + i * 0.06 + 0.05);
+        }
+    }
+    else if (type === 'portal') {
+        // Nether portal whoosh
+        const osc = audioCtx.createOscillator(); osc.type = 'sine';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.8);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.connect(gain); osc.start(now); osc.stop(now + 1);
+    }
+}
+
+// Background music
+let musicPlaying = false;
+function startMusic() {
+    if (musicPlaying) return;
+    musicPlaying = true;
+    const baseNotes = [262,330,392,330,294,349,262,247];
+    let noteIdx = 0;
+    function playNote() {
+        if (!musicPlaying) return;
+        const now = audioCtx.currentTime;
+        const biome = getCurrentBiome();
+        const isNether = biome.bgType === 'nether' || biome.bgType === 'warped' || biome.bgType === 'wither';
+        const isEnd = biome.bgType === 'end';
+        let freq = baseNotes[noteIdx % baseNotes.length];
+        if (isNether) freq *= 0.8; // Lower pitch for nether
+        if (isEnd) freq *= 0.7;
+        const osc = audioCtx.createOscillator();
+        osc.type = isNether ? 'sawtooth' : (isEnd ? 'triangle' : 'sine');
+        osc.frequency.setValueAtTime(freq, now);
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(isNether ? 0.025 : 0.04, now + 0.3);
+        g.gain.linearRampToValueAtTime(isNether ? 0.02 : 0.03, now + 1.2);
+        g.gain.linearRampToValueAtTime(0, now + 1.8);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 2);
+        const osc2 = audioCtx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(freq * 2, now);
+        const g2 = audioCtx.createGain();
+        g2.gain.setValueAtTime(0, now);
+        g2.gain.linearRampToValueAtTime(0.015, now + 0.5);
+        g2.gain.linearRampToValueAtTime(0, now + 1.8);
+        osc2.connect(g2); g2.connect(audioCtx.destination);
+        osc2.start(now); osc2.stop(now + 2);
+        noteIdx++;
+        setTimeout(playNote, 1800);
+    }
+    playNote();
+}
+function stopMusic() { musicPlaying = false; }
+
+// ===================== TEXTURE GENERATOR =====================
+const TILE_W = 70, TILE_H = 36, TILE_DEPTH = 28;
+const PYRAMID_SIZE = 7;
+const OFFSET_X = canvas.width / 2, OFFSET_Y = 110;
+
+let currentTextures = { baseTop: null, baseSide: null, doneTop: null, doneSide: null };
+
+function pickColor(palette, rand) {
+    for (const [color, threshold] of palette) {
+        if (rand < threshold) return color;
+    }
+    return palette[palette.length - 1][0];
+}
+
+function generateTexture(palette, w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    for (let py = 0; py < h; py++) {
+        for (let px = 0; px < w; px++) {
+            cx.fillStyle = pickColor(palette, Math.random());
+            cx.fillRect(px, py, 1, 1);
+        }
+    }
+    return c;
+}
+
+function generateSideTexture(sideConfig, w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    for (let py = 0; py < h; py++) {
+        for (let px = 0; px < w; px++) {
+            if (py < sideConfig.grassH && sideConfig.grass.length > 0) {
+                cx.fillStyle = pickColor(sideConfig.grass, Math.random());
+            } else {
+                cx.fillStyle = pickColor(sideConfig.dirt, Math.random());
+            }
+            cx.fillRect(px, py, 1, 1);
+        }
+    }
+    return c;
+}
+
+function loadBiomeTextures() {
+    const biome = getCurrentBiome();
+    currentTextures.baseTop = generateTexture(biome.baseTop, 16, 16);
+    currentTextures.baseSide = generateSideTexture(biome.baseSide, 16, 16);
+    currentTextures.doneTop = generateTexture(biome.doneTop, 16, 16);
+    currentTextures.doneSide = generateTexture(biome.doneSide, 16, 16);
+}
+
+// ===================== GAME STATE =====================
+let gameState = 'title'; // title, playing, gameover, levelcomplete, biome_intro
+let level = 1, score = 0, lives = 3;
+let tiles = [];
+let player = { row:0, col:0, jumping:false, jumpTime:0, jumpFrom:null, jumpTo:null, facing:1 };
+let enemies = [], enemySpawnTimer = 0;
+let particles = [], xpOrbs = [];
+let flashTimer = 0, inputLocked = false;
+let highScore = parseInt(localStorage.getItem('minebert_high2') || '0');
+let speechBubble = { text:'', timer:0 };
+let dayTime = 0, cloudOffset = 0;
+let biomeIntroTimer = 0;
+
+// ===================== INIT =====================
+function initLevel() {
+    tiles = [];
+    for (let row = 0; row < PYRAMID_SIZE; row++) {
+        tiles[row] = [];
+        for (let col = 0; col <= row; col++) tiles[row][col] = { done: false };
+    }
+    player = { row:0, col:0, jumping:false, jumpTime:0, jumpFrom:null, jumpTo:null, facing:1 };
+    enemies = []; enemySpawnTimer = 180;
+    inputLocked = false;
+    speechBubble = { text:'', timer:0 };
+    xpOrbs = []; particles = [];
+    loadBiomeTextures();
+}
+
+function gridToScreen(row, col) {
+    return { x: OFFSET_X + (col - row / 2) * TILE_W, y: OFFSET_Y + row * (TILE_H + TILE_DEPTH / 2) };
+}
+
+// ===================== DRAW TILE =====================
+function drawMinecraftTile(x, y, done) {
+    const hw = TILE_W / 2, hh = TILE_H / 2, d = TILE_DEPTH;
+    const topTex = done ? currentTextures.doneTop : currentTextures.baseTop;
+    const sideTex = done ? currentTextures.doneSide : currentTextures.baseSide;
+
+    // Top face
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, y - hh); ctx.lineTo(x + hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x - hw, y);
+    ctx.closePath(); ctx.clip();
+    ctx.drawImage(topTex, x - hw, y - hh, TILE_W, TILE_H);
+    ctx.restore();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - hh); ctx.lineTo(x + hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x - hw, y);
+    ctx.closePath(); ctx.stroke();
+
+    // Left face
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x - hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x, y + hh + d); ctx.lineTo(x - hw, y + d);
+    ctx.closePath(); ctx.clip();
+    ctx.drawImage(sideTex, x - hw, y, hw, d + hh);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x - hw, y, hw, d + hh);
+    ctx.restore();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x, y + hh + d); ctx.lineTo(x - hw, y + d);
+    ctx.closePath(); ctx.stroke();
+
+    // Right face
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x, y + hh + d); ctx.lineTo(x + hw, y + d);
+    ctx.closePath(); ctx.clip();
+    ctx.drawImage(sideTex, x, y, hw, d + hh);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x, y, hw, d + hh);
+    ctx.restore();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + hw, y); ctx.lineTo(x, y + hh); ctx.lineTo(x, y + hh + d); ctx.lineTo(x + hw, y + d);
+    ctx.closePath(); ctx.stroke();
+}
+
+// ===================== DRAW CHARACTERS =====================
+function drawSteve(x, y, facing) {
+    ctx.imageSmoothingEnabled = false;
+    const ps = 2, hx = x - 8, hy = y - 36;
+    ctx.fillStyle = '#b87d56'; ctx.fillRect(hx, hy, 16, 16);
+    ctx.fillStyle = '#44280e'; ctx.fillRect(hx, hy, 16, ps * 2); ctx.fillRect(hx, hy, ps, 16);
+    if (facing < 0) ctx.fillRect(hx + 14, hy, ps, 16);
+    ctx.fillStyle = '#fff';
+    if (facing > 0) {
+        ctx.fillRect(hx+4,hy+6,ps*2,ps*2); ctx.fillRect(hx+10,hy+6,ps*2,ps*2);
+        ctx.fillStyle = '#3d2e83'; ctx.fillRect(hx+6,hy+6,ps,ps*2); ctx.fillRect(hx+12,hy+6,ps,ps*2);
+    } else {
+        ctx.fillRect(hx+2,hy+6,ps*2,ps*2); ctx.fillRect(hx+8,hy+6,ps*2,ps*2);
+        ctx.fillStyle = '#3d2e83'; ctx.fillRect(hx+2,hy+6,ps,ps*2); ctx.fillRect(hx+8,hy+6,ps,ps*2);
+    }
+    ctx.fillStyle = '#a06c46'; ctx.fillRect(hx+6,hy+10,ps*2,ps);
+    ctx.fillStyle = '#6b4c2a'; ctx.fillRect(hx+4,hy+12,ps*4,ps);
+    ctx.fillStyle = '#00a8a8'; ctx.fillRect(hx-2,hy+16,20,12);
+    ctx.fillStyle = '#3d3d3d'; ctx.fillRect(hx-2,hy+26,20,2);
+    ctx.fillStyle = '#3b3b9e'; ctx.fillRect(hx,hy+28,7,8); ctx.fillRect(hx+9,hy+28,7,8);
+    ctx.fillStyle = '#555'; ctx.fillRect(hx-1,hy+35,8,2); ctx.fillRect(hx+9,hy+35,8,2);
+    ctx.fillStyle = '#b87d56'; ctx.fillRect(hx-6,hy+16,4,14); ctx.fillRect(hx+18,hy+16,4,14);
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawCreeper(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-8, hy = y-32, ps = 2;
+    ctx.fillStyle = '#3d8c3d'; ctx.fillRect(hx, hy, 16, 16);
+    ctx.fillStyle = '#2d6c2d';
+    ctx.fillRect(hx+2,hy+2,ps,ps); ctx.fillRect(hx+8,hy+4,ps,ps); ctx.fillRect(hx+12,hy+1,ps,ps);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(hx+2,hy+4,ps*2,ps*2); ctx.fillRect(hx+10,hy+4,ps*2,ps*2);
+    ctx.fillRect(hx+6,hy+8,ps*2,ps); ctx.fillRect(hx+4,hy+10,ps*4,ps);
+    ctx.fillRect(hx+4,hy+12,ps,ps*2); ctx.fillRect(hx+10,hy+12,ps,ps*2);
+    ctx.fillStyle = '#3d8c3d'; ctx.fillRect(hx+1,hy+16,14,12);
+    ctx.fillStyle = '#3d8c3d'; ctx.fillRect(hx+1,hy+28,5,6); ctx.fillRect(hx+10,hy+28,5,6);
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawZombie(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-8, hy = y-34, ps = 2;
+    ctx.fillStyle = '#5a8a4a'; ctx.fillRect(hx, hy, 16, 16);
+    ctx.fillStyle = '#2a3a2a'; ctx.fillRect(hx, hy, 16, ps*2);
+    ctx.fillStyle = '#111'; ctx.fillRect(hx+2,hy+6,ps*2,ps*2); ctx.fillRect(hx+10,hy+6,ps*2,ps*2);
+    ctx.fillStyle = '#3a5a3a'; ctx.fillRect(hx+4,hy+12,ps*4,ps);
+    ctx.fillStyle = '#006868'; ctx.fillRect(hx-2,hy+16,20,12);
+    ctx.fillStyle = '#5a8a4a';
+    ctx.fillRect(hx-6,hy+14,4,4); ctx.fillRect(hx+18,hy+14,4,4);
+    ctx.fillRect(hx-10,hy+10,8,4); ctx.fillRect(hx+18,hy+10,8,4);
+    ctx.fillStyle = '#2a2a6e'; ctx.fillRect(hx,hy+28,7,8); ctx.fillRect(hx+9,hy+28,7,8);
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawSkeleton(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-8, hy = y-34, ps = 2;
+    // White/gray skull
+    ctx.fillStyle = '#e0e0e0'; ctx.fillRect(hx, hy, 16, 16);
+    ctx.fillStyle = '#c0c0c0'; ctx.fillRect(hx+1,hy+1,14,3);
+    // Dark eye sockets
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(hx+2,hy+6,ps*2,ps*2); ctx.fillRect(hx+10,hy+6,ps*2,ps*2);
+    // Nose
+    ctx.fillRect(hx+7,hy+10,ps,ps);
+    // Teeth
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(hx+3,hy+13,ps,ps); ctx.fillRect(hx+6,hy+13,ps,ps);
+    ctx.fillRect(hx+9,hy+13,ps,ps); ctx.fillRect(hx+12,hy+13,ps,ps);
+    // Body (ribcage)
+    ctx.fillStyle = '#d0d0d0'; ctx.fillRect(hx+3,hy+16,10,2);
+    ctx.fillStyle = '#aaa'; ctx.fillRect(hx+4,hy+18,2,8); ctx.fillRect(hx+10,hy+18,2,8);
+    ctx.fillStyle = '#ccc'; ctx.fillRect(hx+3,hy+20,10,2); ctx.fillRect(hx+3,hy+24,10,2);
+    // Legs
+    ctx.fillStyle = '#d0d0d0'; ctx.fillRect(hx+3,hy+28,3,8); ctx.fillRect(hx+10,hy+28,3,8);
+    // Bow
+    ctx.fillStyle = '#8b6c42'; ctx.fillRect(hx-8,hy+12,4,16);
+    ctx.fillStyle = '#aaa'; ctx.fillRect(hx-7,hy+10,1,20);
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawEnderman(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-8, hy = y-40, ps = 2;
+    // Tall black body
+    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(hx+2, hy, 12, 14);
+    // Purple eyes
+    ctx.fillStyle = '#cc44ff'; ctx.fillRect(hx+3,hy+5,ps*2,ps); ctx.fillRect(hx+9,hy+5,ps*2,ps);
+    // Thin body
+    ctx.fillStyle = '#0a0a0a'; ctx.fillRect(hx+4,hy+14,8,14);
+    // Long arms
+    ctx.fillRect(hx-4,hy+14,4,18); ctx.fillRect(hx+16,hy+14,4,18);
+    // Thin legs
+    ctx.fillRect(hx+4,hy+28,3,12); ctx.fillRect(hx+9,hy+28,3,12);
+    // Purple particles around
+    ctx.fillStyle = '#8822cc';
+    const t = Date.now() * 0.01;
+    for (let i = 0; i < 4; i++) {
+        const px = hx + 8 + Math.sin(t + i * 1.5) * 14;
+        const py = hy + 10 + Math.cos(t + i * 2) * 18;
+        ctx.fillRect(Math.floor(px), Math.floor(py), 2, 2);
+    }
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawBlaze(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-8, hy = y-30, ps = 2;
+    // Yellow/orange head
+    ctx.fillStyle = '#e8a020'; ctx.fillRect(hx+2, hy, 12, 12);
+    // Dark eyes
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(hx+3,hy+4,ps*2,ps); ctx.fillRect(hx+9,hy+4,ps*2,ps);
+    // Mouth glow
+    ctx.fillStyle = '#ff6600'; ctx.fillRect(hx+4,hy+8,8,2);
+    // Floating rods
+    ctx.fillStyle = '#e8a020';
+    const t = Date.now() * 0.005;
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + t;
+        const rx = hx + 8 + Math.cos(angle) * 14;
+        const ry = hy + 16 + Math.sin(angle) * 6 + Math.sin(t * 2 + i) * 3;
+        ctx.fillRect(Math.floor(rx) - 1, Math.floor(ry), 3, 8);
+    }
+    // Fire particles
+    ctx.fillStyle = '#ff4400';
+    for (let i = 0; i < 3; i++) {
+        const px = hx + 4 + Math.random() * 8;
+        const py = hy - 2 - Math.random() * 6;
+        ctx.fillRect(Math.floor(px), Math.floor(py), 2, 2);
+    }
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawGhast(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-12, hy = y-36;
+    // Big white body
+    ctx.fillStyle = '#e8e8e8'; ctx.fillRect(hx, hy, 24, 20);
+    ctx.fillStyle = '#d0d0d0'; ctx.fillRect(hx+1, hy+1, 22, 18);
+    // Eyes (dark, teary)
+    ctx.fillStyle = '#333';
+    ctx.fillRect(hx+4,hy+8,4,5); ctx.fillRect(hx+16,hy+8,4,5);
+    // Mouth (small, sad)
+    ctx.fillStyle = '#666'; ctx.fillRect(hx+9,hy+15,6,2);
+    // Tentacles
+    ctx.fillStyle = '#d0d0d0';
+    const t = Date.now() * 0.003;
+    for (let i = 0; i < 5; i++) {
+        const tx = hx + 2 + i * 5;
+        const ty = hy + 20;
+        const wave = Math.sin(t + i * 0.8) * 3;
+        ctx.fillRect(Math.floor(tx + wave), ty, 2, 10);
+        ctx.fillRect(Math.floor(tx + wave * 1.3), ty + 10, 2, 6);
+    }
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawWitherSkeleton(x, y) {
+    ctx.imageSmoothingEnabled = false;
+    const hx = x-8, hy = y-36, ps = 2;
+    // Dark skull
+    ctx.fillStyle = '#2a2a2a'; ctx.fillRect(hx, hy, 16, 16);
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(hx+1,hy+1,14,3);
+    // Glowing eyes
+    ctx.fillStyle = '#444'; ctx.fillRect(hx+2,hy+6,ps*2,ps*2); ctx.fillRect(hx+10,hy+6,ps*2,ps*2);
+    ctx.fillStyle = '#aaa'; ctx.fillRect(hx+3,hy+7,ps,ps); ctx.fillRect(hx+11,hy+7,ps,ps);
+    // Teeth
+    ctx.fillStyle = '#444';
+    ctx.fillRect(hx+4,hy+13,ps,ps); ctx.fillRect(hx+8,hy+13,ps,ps); ctx.fillRect(hx+12,hy+13,ps,ps);
+    // Dark body
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(hx+3,hy+16,10,12);
+    // Sword
+    ctx.fillStyle = '#333'; ctx.fillRect(hx+18,hy+8,3,20);
+    ctx.fillStyle = '#555'; ctx.fillRect(hx+17,hy+18,5,3);
+    // Legs
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(hx+3,hy+28,3,10); ctx.fillRect(hx+10,hy+28,3,10);
+    ctx.imageSmoothingEnabled = true;
+}
+
+function drawEnemy(x, y, type) {
+    switch(type) {
+        case 'creeper': drawCreeper(x, y); break;
+        case 'zombie': drawZombie(x, y); break;
+        case 'skeleton': drawSkeleton(x, y); break;
+        case 'enderman': drawEnderman(x, y); break;
+        case 'blaze': drawBlaze(x, y); break;
+        case 'ghast': drawGhast(x, y); break;
+        case 'wither_skeleton': drawWitherSkeleton(x, y); break;
+        default: drawZombie(x, y);
+    }
+}
+
+// ===================== SPEECH BUBBLE =====================
+function drawSpeechBubble(x, y) {
+    if (speechBubble.timer <= 0) return;
+    const bx = x + 20, by = y - 60;
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(bx, by - 10, 60, 22, 4); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx+5,by+12); ctx.lineTo(bx-5,by+20); ctx.lineTo(bx+12,by+12); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#333'; ctx.font = '10px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText(speechBubble.text, bx + 30, by + 7);
+}
+
+// ===================== PARTICLES =====================
+function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+        particles.push({ x, y, vx: (Math.random()-0.5)*5, vy: -Math.random()*4-2, life: 25+Math.random()*15, color, size: 3+Math.random()*3 });
+    }
+}
+function spawnXPOrbs(x, y, count) {
+    for (let i = 0; i < count; i++) {
+        xpOrbs.push({ x: x+(Math.random()-0.5)*30, y: y+(Math.random()-0.5)*20, vx: (Math.random()-0.5)*3, vy: -Math.random()*3-1, life: 60+Math.random()*30, size: 4+Math.random()*3, pulse: Math.random()*Math.PI*2 });
+    }
+}
+function updateParticles() {
+    for (let i = particles.length-1; i >= 0; i--) {
+        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+    for (let i = xpOrbs.length-1; i >= 0; i--) {
+        const o = xpOrbs[i]; o.x += o.vx; o.y += o.vy; o.vy += 0.08; o.vx *= 0.98; o.pulse += 0.15; o.life--;
+        if (o.life <= 0) { xpOrbs.splice(i, 1); playSound('xp'); }
+    }
+}
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = Math.min(1, p.life / 20); ctx.fillStyle = p.color;
+        ctx.fillRect(Math.floor(p.x-p.size/2), Math.floor(p.y-p.size/2), Math.floor(p.size), Math.floor(p.size));
+    });
+    ctx.globalAlpha = 1;
+    xpOrbs.forEach(o => {
+        const glow = 0.5 + Math.sin(o.pulse) * 0.3;
+        ctx.globalAlpha = Math.min(1, o.life/30) * glow;
+        ctx.fillStyle = '#7dff3a'; ctx.shadowColor = '#7dff3a'; ctx.shadowBlur = 8;
+        ctx.fillRect(Math.floor(o.x-o.size/2), Math.floor(o.y-o.size/2), Math.floor(o.size), Math.floor(o.size));
+        ctx.shadowBlur = 0;
+    });
+    ctx.globalAlpha = 1;
+}
+
+// ===================== BACKGROUNDS =====================
+function lerpColor(c1, c2, t) {
+    const r1 = parseInt(c1.slice(1,3),16), g1 = parseInt(c1.slice(3,5),16), b1 = parseInt(c1.slice(5,7),16);
+    const r2 = parseInt(c2.slice(1,3),16), g2 = parseInt(c2.slice(3,5),16), b2 = parseInt(c2.slice(5,7),16);
+    return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+}
+
+function drawBackground() {
+    dayTime += 0.001; cloudOffset += 0.3;
+    const biome = getCurrentBiome();
+    const skyPhase = (Math.sin(dayTime) + 1) / 2;
+    const skyTop = lerpColor(biome.skyTop[0], biome.skyTop[1], skyPhase);
+    const skyBot = lerpColor(biome.skyBot[0], biome.skyBot[1], skyPhase);
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, skyTop); gradient.addColorStop(0.6, skyBot); gradient.addColorStop(1, biome.voidColor);
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const bt = biome.bgType;
+
+    if (bt === 'overworld' || bt === 'dark_forest') {
+        // Stars at night
+        const nightAlpha = Math.max(0, 1 - skyPhase * 2);
+        if (nightAlpha > 0) {
+            ctx.globalAlpha = nightAlpha;
+            for (let i = 0; i < 40; i++) {
+                const sx = (i * 127.1 % 1) * canvas.width;
+                const sy = (i * 311.7 % 1) * canvas.height * 0.5;
+                ctx.fillStyle = `rgba(255,255,220,${0.4+Math.sin(Date.now()*0.003+i*7)*0.4})`;
+                ctx.fillRect(Math.floor(sx), Math.floor(sy), 2, 2);
+            }
+            ctx.globalAlpha = 1;
+        }
+        // Clouds
+        ctx.globalAlpha = 0.6 * skyPhase + 0.2;
+        ctx.fillStyle = bt === 'dark_forest' ? '#556' : '#e8e8e8';
+        for (let i = 0; i < 5; i++) {
+            const cx = ((i*173+cloudOffset)%(canvas.width+200))-100;
+            const cy = 30+i*22;
+            ctx.fillRect(Math.floor(cx),cy,40,8); ctx.fillRect(Math.floor(cx)+8,cy-8,24,8);
+            ctx.fillRect(Math.floor(cx)-8,cy+8,32,6);
+        }
+        ctx.globalAlpha = 1;
+        // Trees for dark forest
+        if (bt === 'dark_forest') {
+            ctx.fillStyle = '#1a3a1a';
+            for (let i = 0; i < 8; i++) {
+                const tx = (i * 97) % canvas.width;
+                ctx.fillRect(tx, canvas.height - 60 - i * 5, 8, 60 + i * 5);
+                ctx.fillStyle = '#0a2a0a';
+                ctx.fillRect(tx - 12, canvas.height - 80 - i * 8, 32, 30);
+                ctx.fillStyle = '#1a3a1a';
+            }
+        }
+    }
+    else if (bt === 'desert') {
+        // Sand dunes
+        ctx.fillStyle = '#d8c890';
+        for (let i = 0; i < 6; i++) {
+            const dx = (i * 130) % canvas.width;
+            ctx.beginPath();
+            ctx.arc(dx, canvas.height - 10, 60 + i * 10, Math.PI, 0);
+            ctx.fill();
+        }
+        // Cactus
+        ctx.fillStyle = '#2a6a2a';
+        ctx.fillRect(80, canvas.height - 70, 6, 40);
+        ctx.fillRect(74, canvas.height - 60, 6, 15);
+        ctx.fillRect(86, canvas.height - 55, 6, 15);
+        ctx.fillRect(600, canvas.height - 65, 6, 35);
+    }
+    else if (bt === 'cave') {
+        // Stalactites
+        ctx.fillStyle = '#3a3a3a';
+        for (let i = 0; i < 10; i++) {
+            const sx = (i * 79) % canvas.width;
+            const sh = 20 + (i * 37) % 40;
+            ctx.fillRect(sx, 0, 6, sh);
+            ctx.beginPath(); ctx.moveTo(sx, sh); ctx.lineTo(sx+3, sh+10); ctx.lineTo(sx+6, sh); ctx.fill();
+        }
+        // Lava pools at bottom
+        ctx.fillStyle = '#e04020';
+        ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.002) * 0.2;
+        ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+        ctx.globalAlpha = 1;
+        // Glowing ore spots
+        ctx.fillStyle = '#40e850';
+        for (let i = 0; i < 5; i++) {
+            ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.004 + i * 2) * 0.2;
+            ctx.fillRect(50 + i * 140, 20 + (i * 47) % 60, 4, 4);
+        }
+        ctx.globalAlpha = 1;
+    }
+    else if (bt === 'nether') {
+        // Lava ocean
+        ctx.fillStyle = '#cc3010';
+        ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.002) * 0.15;
+        ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+        ctx.globalAlpha = 1;
+        // Fire particles
+        ctx.fillStyle = '#ff6020';
+        for (let i = 0; i < 15; i++) {
+            const fx = (i * 51 + Date.now() * 0.02) % canvas.width;
+            const fy = canvas.height - 40 - Math.abs(Math.sin(Date.now() * 0.003 + i)) * 60;
+            ctx.globalAlpha = 0.4; ctx.fillRect(Math.floor(fx), Math.floor(fy), 3, 3); ctx.globalAlpha = 1;
+        }
+        // Netherrack ceiling
+        ctx.fillStyle = '#4a1010';
+        for (let i = 0; i < 8; i++) {
+            ctx.fillRect((i*97)%canvas.width, 0, 30+i*5, 15+i*3);
+        }
+    }
+    else if (bt === 'warped') {
+        // Warped vines
+        ctx.fillStyle = '#0a8a8a';
+        for (let i = 0; i < 6; i++) {
+            const vx = (i * 113) % canvas.width;
+            const vh = 30 + Math.sin(Date.now() * 0.002 + i) * 10;
+            ctx.fillRect(vx, 0, 3, vh);
+            ctx.fillStyle = '#20aaaa'; ctx.fillRect(vx-2, vh, 7, 4); ctx.fillStyle = '#0a8a8a';
+        }
+        // Spores
+        ctx.fillStyle = '#20cccc';
+        for (let i = 0; i < 20; i++) {
+            const sx = (Math.sin(Date.now()*0.001+i*3.7)*0.5+0.5)*canvas.width;
+            const sy = (Math.cos(Date.now()*0.0008+i*2.3)*0.5+0.5)*canvas.height;
+            ctx.globalAlpha = 0.3 + Math.sin(Date.now()*0.005+i)*0.2;
+            ctx.fillRect(Math.floor(sx), Math.floor(sy), 2, 2);
+        }
+        ctx.globalAlpha = 1;
+    }
+    else if (bt === 'end') {
+        // Void particles
+        ctx.fillStyle = '#8822cc';
+        for (let i = 0; i < 25; i++) {
+            const sx = (Math.sin(Date.now()*0.0005+i*4.7)*0.5+0.5)*canvas.width;
+            const sy = (Math.cos(Date.now()*0.0004+i*3.1)*0.5+0.5)*canvas.height;
+            ctx.globalAlpha = 0.15 + Math.sin(Date.now()*0.003+i)*0.1;
+            ctx.fillRect(Math.floor(sx), Math.floor(sy), 2, 2);
+        }
+        ctx.globalAlpha = 1;
+        // End pillars
+        ctx.fillStyle = '#d8d8a0';
+        ctx.fillRect(30, canvas.height - 100, 12, 100);
+        ctx.fillRect(680, canvas.height - 80, 12, 80);
+        // Obsidian
+        ctx.fillStyle = '#1a0a2a';
+        ctx.fillRect(26, canvas.height - 106, 20, 8);
+        ctx.fillRect(676, canvas.height - 86, 20, 8);
+    }
+    else if (bt === 'wither') {
+        // Dark storm
+        ctx.fillStyle = '#1a001a';
+        for (let i = 0; i < 10; i++) {
+            const lx = (Math.sin(Date.now()*0.001+i*5)*0.5+0.5)*canvas.width;
+            ctx.globalAlpha = 0.1;
+            ctx.fillRect(Math.floor(lx), 0, 2, canvas.height);
+        }
+        ctx.globalAlpha = 1;
+        // Soul fire
+        ctx.fillStyle = '#40e8f0';
+        for (let i = 0; i < 10; i++) {
+            const fx = (i * 73 + Date.now() * 0.01) % canvas.width;
+            const fy = canvas.height - 20 - Math.abs(Math.sin(Date.now()*0.004+i))*30;
+            ctx.globalAlpha = 0.3; ctx.fillRect(Math.floor(fx), Math.floor(fy), 3, 3);
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ===================== GAME LOGIC =====================
+function checkLevelComplete() {
+    for (let row = 0; row < PYRAMID_SIZE; row++)
+        for (let col = 0; col <= row; col++)
+            if (!tiles[row][col].done) return false;
+    return true;
+}
+
+function spawnEnemy() {
+    const biome = getCurrentBiome();
+    const types = biome.enemies;
+    const type = Math.random() < biome.enemyWeightCreeper ? types[0] : types[1];
+    const col = Math.random() < 0.5 ? 0 : 1;
+    enemies.push({ row:0, col, type, jumping:false, jumpTime:0, jumpFrom:null, jumpTo:null, moveTimer:50+Math.random()*40, alive:true });
+    playSound(type);
+}
+
+function moveEnemy(enemy) {
+    if (enemy.jumping) return;
+    enemy.moveTimer--;
+    if (enemy.moveTimer > 0) return;
+    enemy.moveTimer = 55 + Math.random() * 35;
+    const possibleMoves = [];
+    const nr1 = enemy.row + 1;
+    if (nr1 < PYRAMID_SIZE) {
+        if (enemy.col <= nr1) possibleMoves.push({ row: nr1, col: enemy.col });
+        if (enemy.col+1 <= nr1) possibleMoves.push({ row: nr1, col: enemy.col+1 });
+    }
+    if (possibleMoves.length === 0) { enemy.alive = false; return; }
+    let target;
+    // Smarter enemies chase harder
+    const chaseChance = (enemy.type === 'creeper' || enemy.type === 'enderman' || enemy.type === 'wither_skeleton') ? 0.65 : 0.35;
+    if (Math.random() < chaseChance) {
+        target = possibleMoves.reduce((a, b) => {
+            const da = Math.abs(a.row-player.row)+Math.abs(a.col-player.col);
+            const db = Math.abs(b.row-player.row)+Math.abs(b.col-player.col);
+            return da < db ? a : b;
+        });
+    } else {
+        target = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+    }
+    enemy.jumping = true; enemy.jumpTime = 0;
+    enemy.jumpFrom = { row: enemy.row, col: enemy.col };
+    enemy.jumpTo = target;
+}
+
+function getJumpPos(from, to, t) {
+    const fp = gridToScreen(from.row, from.col), tp = gridToScreen(to.row, to.col);
+    return { x: fp.x+(tp.x-fp.x)*t, y: fp.y+(tp.y-fp.y)*t - 55*Math.sin(t*Math.PI) };
+}
+
+// ===================== INPUT =====================
+document.addEventListener('keydown', e => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    if (gameState === 'title') {
+        if (e.key === ' ' || e.key === 'Enter') {
+            playSound('click'); level = 1; score = 0; lives = 3;
+            gameState = 'biome_intro'; biomeIntroTimer = 180;
+            initLevel(); startMusic(); playSound('portal');
+        }
+        return;
+    }
+    if (gameState === 'biome_intro') {
+        if (e.key === ' ' || e.key === 'Enter') { biomeIntroTimer = 0; }
+        return;
+    }
+    if (gameState === 'gameover') {
+        if (e.key === ' ' || e.key === 'Enter') { playSound('click'); gameState = 'title'; stopMusic(); }
+        return;
+    }
+    if (gameState === 'levelcomplete') {
+        if (e.key === ' ' || e.key === 'Enter') {
+            playSound('click'); level++;
+            gameState = 'biome_intro'; biomeIntroTimer = 180;
+            initLevel(); playSound('portal');
+        }
+        return;
+    }
+    if (gameState !== 'playing' || player.jumping || inputLocked) return;
+
+    let tR = player.row, tC = player.col, moved = false;
+    // ← = sale verso la cima ↖
+    // → = scende a destra ↘
+    // ↑ = sale a destra ↗
+    // ↓ = scende a sinistra ↙
+    if (e.key==='ArrowLeft') { tR--; tC--; player.facing=-1; moved=true; }       // ← cima ↖
+    else if (e.key==='ArrowRight') { tR++; tC++; player.facing=1; moved=true; }  // → giù-destra ↘
+    else if (e.key==='ArrowUp') { tR--; player.facing=1; moved=true; }           // ↑ sale a destra ↗
+    else if (e.key==='ArrowDown') { tR++; player.facing=-1; moved=true; }        // ↓ scende a sinistra ↙
+    if (!moved) return;
+    playSound('jump');
+    if (tR < 0 || tR >= PYRAMID_SIZE || tC < 0 || tC > tR) {
+        player.jumping=true; player.jumpTime=0;
+        player.jumpFrom={row:player.row,col:player.col}; player.jumpTo={row:tR,col:tC};
+        const sw = ['@#$!','OOF!','#@!?','BRUH','*&^!'];
+        speechBubble.text = sw[Math.floor(Math.random()*sw.length)]; speechBubble.timer=90;
+        playSound('fall'); return;
+    }
+    player.jumping=true; player.jumpTime=0;
+    player.jumpFrom={row:player.row,col:player.col}; player.jumpTo={row:tR,col:tC};
+});
+
+// ===================== UPDATE =====================
+function update() {
+    if (gameState === 'biome_intro') {
+        biomeIntroTimer--;
+        if (biomeIntroTimer <= 0) gameState = 'playing';
+        return;
+    }
+    if (gameState !== 'playing') return;
+
+    if (player.jumping) {
+        player.jumpTime += 0.05;
+        if (player.jumpTime >= 1) {
+            player.jumping = false;
+            const t = player.jumpTo;
+            if (t.row<0||t.row>=PYRAMID_SIZE||t.col<0||t.col>t.row) {
+                lives--;
+                const pos = gridToScreen(player.jumpFrom.row, player.jumpFrom.col);
+                spawnParticles(pos.x, pos.y, '#8b6c42', 12); playSound('hurt');
+                if (lives<=0) {
+                    gameState='gameover'; playSound('death');
+                    if (score>highScore) { highScore=score; localStorage.setItem('minebert_high2',highScore.toString()); }
+                } else { player.row=0; player.col=0; inputLocked=true; setTimeout(()=>{inputLocked=false;},500); }
+                return;
+            }
+            player.row=t.row; player.col=t.col;
+            if (!tiles[player.row][player.col].done) {
+                tiles[player.row][player.col].done=true; score+=25;
+                const pos = gridToScreen(player.row, player.col);
+                const biome = getCurrentBiome();
+                spawnParticles(pos.x, pos.y, biome.particleColor, 6);
+                spawnXPOrbs(pos.x, pos.y-10, 3); playSound('place');
+            }
+            if (checkLevelComplete()) {
+                score += 1000 + level*500; flashTimer=60;
+                gameState='levelcomplete'; playSound('levelup');
+            }
+        }
+    }
+    if (speechBubble.timer>0) speechBubble.timer--;
+    enemySpawnTimer--;
+    if (enemySpawnTimer<=0) {
+        if (enemies.length < 2+Math.floor(level/2)) spawnEnemy();
+        enemySpawnTimer = Math.max(80, 260-level*18);
+    }
+    for (let i=enemies.length-1; i>=0; i--) {
+        const e = enemies[i];
+        if (e.jumping) {
+            e.jumpTime+=0.04;
+            if (e.jumpTime>=1) {
+                e.jumping=false;
+                const t=e.jumpTo;
+                if (t.row<0||t.row>=PYRAMID_SIZE||t.col<0||t.col>t.row) { e.alive=false; score+=100; }
+                else { e.row=t.row; e.col=t.col; }
+            }
+        } else moveEnemy(e);
+        if (!player.jumping && e.row===player.row && e.col===player.col && !e.jumping) {
+            lives--;
+            const pos = gridToScreen(player.row, player.col);
+            const isExplosive = e.type==='creeper'||e.type==='blaze'||e.type==='ghast';
+            if (isExplosive) { spawnParticles(pos.x,pos.y,'#ff8800',20); spawnParticles(pos.x,pos.y,'#888',15); playSound('explode'); }
+            else { spawnParticles(pos.x,pos.y,'#8b6c42',12); playSound('hurt'); }
+            const msgs=['OOF!','@#$!','BRUH','NO!!','AIUTO'];
+            speechBubble.text=msgs[Math.floor(Math.random()*msgs.length)]; speechBubble.timer=90;
+            if (lives<=0) {
+                gameState='gameover'; playSound('death');
+                if (score>highScore) { highScore=score; localStorage.setItem('minebert_high2',highScore.toString()); }
+            } else { player.row=0; player.col=0; enemies=[]; inputLocked=true; setTimeout(()=>{inputLocked=false;},800); }
+        }
+        if (!e.alive) enemies.splice(i, 1);
+    }
+    updateParticles();
+    if (flashTimer>0) flashTimer--;
+}
+
+// ===================== DRAW HUD =====================
+function drawHeart(x, y, s) {
+    const hs = s/4;
+    ctx.fillRect(x+hs,y,hs,hs); ctx.fillRect(x+hs*2,y,hs,hs);
+    ctx.fillRect(x+hs*4,y,hs,hs); ctx.fillRect(x+hs*5,y,hs,hs);
+    ctx.fillRect(x,y+hs,hs*7,hs); ctx.fillRect(x+hs,y+hs*2,hs*5,hs);
+    ctx.fillRect(x+hs*2,y+hs*3,hs*3,hs); ctx.fillRect(x+hs*3,y+hs*4,hs,hs);
+}
+function drawHUD() {
+    const biome = getCurrentBiome();
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, canvas.width, 65);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,65); ctx.lineTo(canvas.width,65); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = '12px "Press Start 2P", monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`SCORE ${score}`, 15, 25);
+    for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = i < lives ? '#e02020' : '#444';
+        drawHeart(15+i*22, 38, 8);
+    }
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'right';
+    ctx.fillText(`LVL ${level}`, canvas.width-15, 25);
+    ctx.fillStyle = '#aaa'; ctx.font = '8px "Press Start 2P", monospace';
+    ctx.fillText(biome.name, canvas.width-15, 42);
+    ctx.fillText(`HI ${highScore}`, canvas.width-15, 56);
+}
+
+// ===================== DRAW MAIN =====================
+function draw() {
+    drawBackground();
+    if (gameState === 'title') { drawTitleScreen(); return; }
+    if (gameState === 'biome_intro') { drawBiomeIntro(); return; }
+    drawHUD();
+
+    // Pyramid
+    for (let row = PYRAMID_SIZE-1; row >= 0; row--) {
+        for (let col = row; col >= 0; col--) {
+            const pos = gridToScreen(row, col);
+            const done = tiles[row]&&tiles[row][col] ? tiles[row][col].done : false;
+            if (flashTimer>0 && Math.floor(flashTimer/5)%2===0) drawMinecraftTile(pos.x, pos.y, !done);
+            else drawMinecraftTile(pos.x, pos.y, done);
+        }
+    }
+    // Enemies
+    enemies.forEach(e => {
+        const pos = e.jumping ? getJumpPos(e.jumpFrom, e.jumpTo, e.jumpTime) : gridToScreen(e.row, e.col);
+        drawEnemy(pos.x, pos.y, e.type);
+    });
+    // Player
+    const pp = player.jumping ? getJumpPos(player.jumpFrom, player.jumpTo, player.jumpTime) : gridToScreen(player.row, player.col);
+    drawSteve(pp.x, pp.y, player.facing);
+    drawSpeechBubble(pp.x, pp.y);
+    drawParticles();
+
+    // Overlays
+    if (gameState === 'gameover') {
+        ctx.fillStyle = 'rgba(80,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = '#fff'; ctx.font = '28px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+        ctx.fillText('You Died!', canvas.width/2, canvas.height/2-50);
+        ctx.fillStyle = '#aaa'; ctx.font = '12px "Press Start 2P", monospace';
+        ctx.fillText(`Score: ${score}`, canvas.width/2, canvas.height/2);
+        ctx.fillText(`Livello: ${level} - ${getCurrentBiome().name}`, canvas.width/2, canvas.height/2+25);
+        if (score>=highScore&&score>0) { ctx.fillStyle='#ffcc00'; ctx.fillText('NEW HIGH SCORE!',canvas.width/2,canvas.height/2+55); }
+        const bw=280, bh=36, bx=canvas.width/2-bw/2, by=canvas.height/2+75;
+        ctx.fillStyle='#555'; ctx.fillRect(bx,by,bw,bh);
+        ctx.strokeStyle='#888'; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
+        ctx.fillStyle='#fff'; ctx.font='11px "Press Start 2P", monospace';
+        ctx.fillText('SPAZIO per il menu',canvas.width/2,by+22);
+    }
+    if (gameState === 'levelcomplete') {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        const biome = getCurrentBiome();
+        const nextBiome = BIOMES[level % BIOMES.length]; // next level biome
+        ctx.fillStyle = '#7dff3a'; ctx.font = '22px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+        ctx.fillText('LIVELLO', canvas.width/2, canvas.height/2-60);
+        ctx.fillText('COMPLETATO!', canvas.width/2, canvas.height/2-28);
+        ctx.fillStyle = '#ffcc00'; ctx.font = '14px "Press Start 2P", monospace';
+        ctx.fillText(`+${1000+level*500} XP`, canvas.width/2, canvas.height/2+10);
+        ctx.fillStyle = '#aaa'; ctx.font = '10px "Press Start 2P", monospace';
+        ctx.fillText(`Prossimo: ${nextBiome.name}`, canvas.width/2, canvas.height/2+40);
+        const bw=300, bh=36, bx=canvas.width/2-bw/2, by=canvas.height/2+60;
+        ctx.fillStyle='#4a7a2a'; ctx.fillRect(bx,by,bw,bh);
+        ctx.strokeStyle='#6a9a4a'; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
+        ctx.fillStyle='#fff'; ctx.font='9px "Press Start 2P", monospace';
+        ctx.fillText('SPAZIO per continuare',canvas.width/2,by+22);
+    }
+}
+
+// ===================== BIOME INTRO SCREEN =====================
+function drawBiomeIntro() {
+    const biome = getCurrentBiome();
+    const progress = 1 - biomeIntroTimer / 180;
+
+    // Animated background
+    drawBackground();
+
+    // Dark overlay fading in
+    ctx.fillStyle = `rgba(0,0,0,${0.7 - progress * 0.3})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Portal animation
+    const portalSize = 80 + Math.sin(Date.now() * 0.005) * 10;
+    const portalColor = biome.bgType === 'nether' || biome.bgType === 'warped' || biome.bgType === 'wither' ? '#8020c0' : '#40a0e0';
+    ctx.strokeStyle = portalColor;
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.008) * 0.2;
+    ctx.beginPath();
+    ctx.ellipse(canvas.width/2, 200, portalSize, portalSize * 1.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = portalColor;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Inner swirl
+    for (let i = 0; i < 8; i++) {
+        const angle = Date.now() * 0.003 + i * Math.PI / 4;
+        const r = portalSize * 0.6;
+        const px = canvas.width/2 + Math.cos(angle) * r;
+        const py = 200 + Math.sin(angle) * r * 1.3;
+        ctx.fillStyle = portalColor;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(Math.floor(px)-2, Math.floor(py)-2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+
+    // Level number
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = '16px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`LIVELLO ${level}`, canvas.width/2, 360);
+
+    // Biome name (big)
+    ctx.fillStyle = '#fff';
+    ctx.font = '28px "Press Start 2P", monospace';
+    ctx.fillText(biome.name, canvas.width/2, 410);
+
+    // Subtitle
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px "Press Start 2P", monospace';
+    ctx.fillText(biome.subtitle, canvas.width/2, 445);
+
+    // Objective
+    ctx.fillStyle = biome.particleColor;
+    ctx.font = '10px "Press Start 2P", monospace';
+    ctx.fillText(`Trasforma in: ${biome.doneName}`, canvas.width/2, 490);
+
+    // Enemy preview
+    ctx.fillStyle = '#888';
+    ctx.font = '9px "Press Start 2P", monospace';
+    ctx.fillText('Nemici:', canvas.width/2, 530);
+    const ex1 = canvas.width/2 - 40, ex2 = canvas.width/2 + 40;
+    drawEnemy(ex1, 580, biome.enemies[0]);
+    drawEnemy(ex2, 580, biome.enemies[1]);
+    ctx.fillStyle = '#aaa'; ctx.font = '7px "Press Start 2P", monospace';
+    ctx.fillText(biome.enemies[0], ex1, 600);
+    ctx.fillText(biome.enemies[1], ex2, 600);
+
+    // Cycle info
+    const cycle = Math.floor((level-1) / BIOMES.length) + 1;
+    if (cycle > 1) {
+        ctx.fillStyle = '#ff4444'; ctx.font = '9px "Press Start 2P", monospace';
+        ctx.fillText(`Ciclo ${cycle} - Più difficile!`, canvas.width/2, 640);
+    }
+
+    // Skip prompt
+    if (biomeIntroTimer < 150) {
+        const blink = Math.sin(Date.now() * 0.006) > 0;
+        if (blink) {
+            ctx.fillStyle = '#fff'; ctx.font = '11px "Press Start 2P", monospace';
+            ctx.fillText('SPAZIO per iniziare', canvas.width/2, canvas.height - 50);
+        }
+    }
+}
+
+// ===================== TITLE SCREEN =====================
+function drawTitleScreen() {
+    const time = Date.now() * 0.001;
+    ctx.fillStyle = '#4a4a4a'; ctx.font = '42px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText('MINE*BERT', canvas.width/2+3, 123);
+    ctx.fillStyle = '#5a9e2c'; ctx.fillText('MINE*BERT', canvas.width/2, 120);
+    ctx.fillStyle = '#8b6c42'; ctx.font = '12px "Press Start 2P", monospace';
+    ctx.fillText('Un gioco tipo Q*Bert', canvas.width/2, 155);
+    ctx.fillStyle = '#aaa'; ctx.fillText('ma in mood Minecraft', canvas.width/2, 175);
+
+    // Biome preview tiles
+    ctx.fillStyle = '#ffcc00'; ctx.font = '9px "Press Start 2P", monospace';
+    ctx.fillText(`${BIOMES.length} BIOMI DA ESPLORARE!`, canvas.width/2, 210);
+
+    // Mini biome color bars
+    const barW = 50, barH = 8, startX = canvas.width/2 - (BIOMES.length * (barW+4))/2;
+    for (let i = 0; i < BIOMES.length; i++) {
+        const b = BIOMES[i];
+        ctx.fillStyle = b.particleColor;
+        ctx.fillRect(startX + i*(barW+4), 222, barW, barH);
+        ctx.fillStyle = '#888'; ctx.font = '5px "Press Start 2P", monospace';
+        ctx.fillText(b.name.substring(0,6), startX + i*(barW+4) + barW/2, 240);
+    }
+
+    // Demo pyramid
+    const demoOffX = canvas.width/2, demoOffY = 310;
+    // Use default grass textures for title
+    const savedTex = {...currentTextures};
+    loadBiomeTextures(); // ensure textures loaded
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col <= row; col++) {
+            const dx = demoOffX + (col-row/2)*55, dy = demoOffY + row*38;
+            ctx.save(); ctx.translate(dx,dy); ctx.scale(0.78,0.78); ctx.translate(-dx,-dy);
+            drawMinecraftTile(dx, dy, (row+col+Math.floor(time))%3===0);
+            ctx.restore();
+        }
+    }
+    ctx.save(); ctx.translate(demoOffX,demoOffY); ctx.scale(0.78,0.78); ctx.translate(-demoOffX,-demoOffY);
+    drawSteve(demoOffX, demoOffY, 1);
+    ctx.restore();
+    const cx2 = demoOffX+55*0.78, cy2 = demoOffY+38;
+    ctx.save(); ctx.translate(cx2,cy2); ctx.scale(0.78,0.78); ctx.translate(-cx2,-cy2);
+    drawCreeper(cx2+10, cy2);
+    ctx.restore();
+
+    // Controls
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(50,480,canvas.width-100,160);
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.strokeRect(50,480,canvas.width-100,160);
+    ctx.fillStyle = '#5a9e2c'; ctx.font = '11px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText('CONTROLLI', canvas.width/2, 505);
+    ctx.fillStyle = '#aaa'; ctx.font = '8px "Press Start 2P", monospace';
+    ctx.fillText('← = sale alla cima   ↖', canvas.width/2, 525);
+    ctx.fillText('→ = scende a destra  ↘', canvas.width/2, 543);
+    ctx.fillText('↑ = sale a destra    ↗', canvas.width/2, 558);
+    ctx.fillText('↓ = scende a sinistra↙', canvas.width/2, 573);
+    ctx.fillStyle = '#ffcc00'; ctx.font = '7px "Press Start 2P", monospace';
+    ctx.fillText('Trasforma tutti i blocchi!', canvas.width/2, 575);
+    ctx.fillText('Evita i mob nemici!', canvas.width/2, 590);
+    ctx.fillText('Ogni bioma ha nuovi blocchi e nemici!', canvas.width/2, 610);
+    ctx.fillText(`${BIOMES.length} livelli, poi si ricomincia più forte!`, canvas.width/2, 625);
+
+    const blink = Math.sin(Date.now()*0.005)>0;
+    if (blink) { ctx.fillStyle='#fff'; ctx.font='13px "Press Start 2P", monospace'; ctx.fillText('PREMI SPAZIO',canvas.width/2,canvas.height-60); }
+    if (highScore>0) { ctx.fillStyle='#ffcc00'; ctx.font='10px "Press Start 2P", monospace'; ctx.fillText(`HIGH SCORE: ${highScore}`,canvas.width/2,canvas.height-25); }
+    ctx.fillStyle='#444'; ctx.font='7px "Press Start 2P", monospace'; ctx.textAlign='right'; ctx.fillText('v2.0',canvas.width-15,canvas.height-10);
+}
+
+// ===================== GAME LOOP =====================
+function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+initLevel();
+gameLoop();
+</script>
+</body>
+</html>
