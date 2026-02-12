@@ -17,15 +17,15 @@ canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const GAME_W = 720, GAME_H = 780;
-canvas.width = GAME_W;
-canvas.height = GAME_H;
-
+// Use screen aspect ratio for internal resolution, keeping pyramid scale consistent
+const BASE_H = 780;
 function resizeCanvas() {
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const scale = Math.min(vw / GAME_W, vh / GAME_H);
-    canvas.style.width = (GAME_W * scale) + 'px';
-    canvas.style.height = (GAME_H * scale) + 'px';
+    const aspect = window.innerWidth / window.innerHeight;
+    canvas.height = BASE_H;
+    canvas.width = Math.round(BASE_H * aspect);
+    // CSS: stretch to fill viewport
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -396,7 +396,8 @@ function stopMusic() { musicPlaying = false; }
 // ===================== TEXTURE GENERATOR =====================
 const TILE_W = 70, TILE_H = 36, TILE_DEPTH = 28;
 const PYRAMID_SIZE = 7;
-const OFFSET_X = canvas.width / 2, OFFSET_Y = 110;
+const OFFSET_Y = 110;
+function getOffsetX() { return canvas.width / 2; }
 
 let currentTextures = { baseTop: null, baseSide: null, doneTop: null, doneSide: null };
 
@@ -474,7 +475,7 @@ function initLevel() {
 }
 
 function gridToScreen(row, col) {
-    return { x: OFFSET_X + (col - row / 2) * TILE_W, y: OFFSET_Y + row * (TILE_H + TILE_DEPTH / 2) };
+    return { x: getOffsetX() + (col - row / 2) * TILE_W, y: OFFSET_Y + row * (TILE_H + TILE_DEPTH / 2) };
 }
 
 // ===================== DRAW TILE =====================
@@ -831,7 +832,7 @@ function drawBackground() {
         ctx.fillRect(80, canvas.height - 70, 6, 40);
         ctx.fillRect(74, canvas.height - 60, 6, 15);
         ctx.fillRect(86, canvas.height - 55, 6, 15);
-        ctx.fillRect(600, canvas.height - 65, 6, 35);
+        ctx.fillRect(canvas.width - 120, canvas.height - 65, 6, 35);
     }
     else if (bt === 'cave') {
         // Stalactites
@@ -906,11 +907,11 @@ function drawBackground() {
         // End pillars
         ctx.fillStyle = '#d8d8a0';
         ctx.fillRect(30, canvas.height - 100, 12, 100);
-        ctx.fillRect(680, canvas.height - 80, 12, 80);
+        ctx.fillRect(canvas.width - 40, canvas.height - 80, 12, 80);
         // Obsidian
         ctx.fillStyle = '#1a0a2a';
         ctx.fillRect(26, canvas.height - 106, 20, 8);
-        ctx.fillRect(676, canvas.height - 86, 20, 8);
+        ctx.fillRect(canvas.width - 44, canvas.height - 86, 20, 8);
     }
     else if (bt === 'wither') {
         // Dark storm
