@@ -396,8 +396,11 @@ function stopMusic() { musicPlaying = false; }
 // ===================== TEXTURE GENERATOR =====================
 const TILE_W = 70, TILE_H = 36, TILE_DEPTH = 28;
 const PYRAMID_SIZE = 7;
-const OFFSET_Y = 110;
 function getOffsetX() { return canvas.width / 2; }
+function getOffsetY() {
+    const pyramidH = PYRAMID_SIZE * (TILE_H + TILE_DEPTH / 2) + TILE_DEPTH;
+    return (canvas.height - pyramidH) / 2 + 20;
+}
 
 let currentTextures = { baseTop: null, baseSide: null, doneTop: null, doneSide: null };
 
@@ -475,7 +478,7 @@ function initLevel() {
 }
 
 function gridToScreen(row, col) {
-    return { x: getOffsetX() + (col - row / 2) * TILE_W, y: OFFSET_Y + row * (TILE_H + TILE_DEPTH / 2) };
+    return { x: getOffsetX() + (col - row / 2) * TILE_W, y: getOffsetY() + row * (TILE_H + TILE_DEPTH / 2) };
 }
 
 // ===================== DRAW TILE =====================
