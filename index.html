@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Mine*Bert - Minecraft Q*Bert</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Press Start 2P', 'Courier New', monospace; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+body { display: flex; justify-content: center; align-items: center; font-family: 'Press Start 2P', 'Courier New', monospace; }
 canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
 </style>
 </head>
@@ -15,8 +17,18 @@ canvas { display: block; image-rendering: pixelated; cursor: crosshair; }
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-canvas.width = 720;
-canvas.height = 780;
+const GAME_W = 720, GAME_H = 780;
+canvas.width = GAME_W;
+canvas.height = GAME_H;
+
+function resizeCanvas() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const scale = Math.min(vw / GAME_W, vh / GAME_H);
+    canvas.style.width = (GAME_W * scale) + 'px';
+    canvas.style.height = (GAME_H * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 // ===================== BIOME / LEVEL THEMES =====================
 const BIOMES = [
@@ -1067,6 +1079,7 @@ function update() {
         if (enemies.length < 2+Math.floor(level/2)) spawnEnemy();
         enemySpawnTimer = Math.max(80, 260-level*18);
     }
+    // Update enemies first (movement only)
     for (let i=enemies.length-1; i>=0; i--) {
         const e = enemies[i];
         if (e.jumping) {
@@ -1078,20 +1091,33 @@ function update() {
                 else { e.row=t.row; e.col=t.col; }
             }
         } else moveEnemy(e);
-        if (!player.jumping && e.row===player.row && e.col===player.col && !e.jumping) {
+        if (!e.alive) enemies.splice(i, 1);
+    }
+    // Collision check AFTER all enemies moved (prevents mid-loop array mutation)
+    if (!player.jumping && !inputLocked) {
+        let hit = false;
+        for (let i=0; i<enemies.length; i++) {
+            const e = enemies[i];
+            if (!e.jumping && e.row===player.row && e.col===player.col) { hit = true;
+                const isExplosive = e.type==='creeper'||e.type==='blaze'||e.type==='ghast';
+                const pos = gridToScreen(player.row, player.col);
+                if (isExplosive) { spawnParticles(pos.x,pos.y,'#ff8800',20); spawnParticles(pos.x,pos.y,'#888',15); playSound('explode'); }
+                else { spawnParticles(pos.x,pos.y,'#8b6c42',12); playSound('hurt'); }
+                break;
+            }
+        }
+        if (hit) {
             lives--;
-            const pos = gridToScreen(player.row, player.col);
-            const isExplosive = e.type==='creeper'||e.type==='blaze'||e.type==='ghast';
-            if (isExplosive) { spawnParticles(pos.x,pos.y,'#ff8800',20); spawnParticles(pos.x,pos.y,'#888',15); playSound('explode'); }
-            else { spawnParticles(pos.x,pos.y,'#8b6c42',12); playSound('hurt'); }
             const msgs=['OOF!','@#$!','BRUH','NO!!','AIUTO'];
             speechBubble.text=msgs[Math.floor(Math.random()*msgs.length)]; speechBubble.timer=90;
             if (lives<=0) {
                 gameState='gameover'; playSound('death');
                 if (score>highScore) { highScore=score; localStorage.setItem('minebert_high2',highScore.toString()); }
-            } else { player.row=0; player.col=0; enemies=[]; inputLocked=true; setTimeout(()=>{inputLocked=false;},800); }
+            } else {
+                player.row=0; player.col=0; enemies=[];
+                inputLocked=true; setTimeout(()=>{inputLocked=false;},800);
+            }
         }
-        if (!e.alive) enemies.splice(i, 1);
     }
     updateParticles();
     if (flashTimer>0) flashTimer--;
